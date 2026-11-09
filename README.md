@@ -103,3 +103,7 @@ Run `./install.sh` after any change. Projects already in progress keep their own
 - Market research uses public web sources only. Scores are reasoned judgments with stated confidence.
 - Mobile testing runs on simulators and emulators. Real devices, store submission, paid services and production deployment need you.
 - Long implementation stages span several sessions; they resume from `state.json` and `tasks.json`, not from conversation memory.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
