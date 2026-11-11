@@ -1,6 +1,6 @@
 # App Factory
 
-A reusable Claude workflow that takes an app idea from a plain description to a designed, built, tested and launch-ready product. It is a skill plus a team of specialist subagents, not a separate service: it runs inside your normal Claude Code sessions.
+A reusable Claude workflow that takes a mobile or web app idea from a plain description to a designed, built, tested and launch-ready product. It is a skill plus a team of specialist subagents, not a separate service: it runs inside your normal Claude Code sessions.
 
 It starts as a conversation. After a quick market check, it asks multiple-choice questions to decide the idea, scope, scale, design direction and technology together with you, and only then writes one `plan.md`. From there specialist agents design, plan, build and test, stopping at five approval gates.
 
@@ -11,6 +11,7 @@ Early and largely unproven. Read this before relying on it.
 - **Tested:** the state script (`factory.py`) passes a simulated run of the whole lifecycle, including the cases it must refuse: starting a stage before the previous gate is approved, completing a stage whose required output is missing, a fourth attempt at a task, and dependency cycles.
 - **Not yet tested:** a complete run on a real app idea with live agents. The stage guides and agent definitions are instructions for Claude; how well they perform on a real project has not been measured.
 - **Tested once:** the analyze mode, in its current form, on one real iOS repository. It completed end to end: two rounds of intent questions, market scan and code review in parallel, the repository's 654 package tests run with the owner's agreement, a verdict with gap table and path to shipment, and a `vision.md` written. The market scan still left several questions unresolved even when told to open pages, so treat its competitor and pricing findings as weak evidence. One run is not a measure of quality.
+- **Not yet tested:** the web path (web applications, installable web apps, content sites, APIs). It was added after the mobile path and has not been run on a real idea.
 - **Not yet measured:** token use. Version 2 is designed to use fewer tokens than version 1 (one quick research pass before the conversation, seven required documents instead of about 45, shorter instructions), but no real run has been measured.
 - **Not yet tested:** creating designs in Figma. Stage 2 depends on the Figma connector's write-to-canvas tool, which is in beta.
 - There is no automated test suite or CI in this repository yet.
@@ -36,6 +37,16 @@ Requirements: Python 3.9 or later, git, and for stage 2 the Figma connector conn
 
 To come back later: open the project folder and run `/app-factory continue`. For a quick look: `/app-factory status`.
 
+## Platforms
+
+The workflow is the same for every product; the platform is one of the decisions made in the opening chat and recorded in `plan.md`:
+
+- **Mobile:** native iOS and Android, or a cross-platform framework.
+- **Web:** a web application, an installable web app (PWA), a content or marketing site, or an API or backend with no interface.
+- **Both:** one project and one plan, with a shared backend.
+
+What differs by platform (technology options, design constraints, how QA tests, what launch involves) lives in two small files, `platforms/mobile.md` and `platforms/web.md`, and only the relevant one is read. For an API-only product there are no screens, so the design stage produces the API contract instead of a Figma design.
+
 ## Analyze an existing repo
 
 Open any app repository in Claude and run `/app-factory analyze`. This is separate from the lifecycle below: it never touches stage state or gates and never edits code.
@@ -57,7 +68,7 @@ Finally it asks whether to save the report as `docs/app-analysis.md`.
 | Stage | What happens | Required output | Gate |
 |---|---|---|---|
 | 1 Discover | Quick viability scan, then the decision conversation | `plan.md` | 1 Plan |
-| 2 Design | Design system, screens and prototype in Figma | `docs/design.md` | 2 Design |
+| 2 Design | Design system, screens and prototype in Figma (API contract for API-only products) | `docs/design.md` | 2 Design |
 | 3 Build plan | Technical design, tasks, test plan, CI/CD | `docs/build-plan.md`, `docs/tasks.json` | 3 Build plan |
 | 4 Implement | Developer agents work through the tasks | tasks done | none |
 | 5 QA | Independent verification and readiness report | `docs/qa-report.md` | 4 Acceptance |

@@ -2,6 +2,8 @@
 
 Project `<id>` · decided <date> · status: awaiting approval at Gate 1
 
+**Platform:** <mobile | web: application, installable web app, content site or API only | both>
+
 ## 1. The idea, as originally written
 
 > <verbatim from .factory/idea.md>

@@ -8,7 +8,7 @@
 
 ## Steps
 
-1. **Orient.** Read the README, manifests, top-level structure, docs and `git log` in summary. Look for an existing vision: `vision.md`, or a "Vision" section in `plan.md`. Tell the user in two or three lines what the app is and how far along it looks.
+1. **Orient.** Read the README, manifests, top-level structure, docs and `git log` in summary. Identify the platform from the project files and read the matching file in `platforms/` for what to check. Look for an existing vision: `vision.md`, or a "Vision" section in `plan.md`. Tell the user in two or three lines what the app is and how far along it looks.
 
 2. **Intent, round one.** The repository shows what exists, not what is intended, so ask before judging. Every question offers "Not decided yet". Cover:
    - who it is for, and whether it is personal or meant for release;

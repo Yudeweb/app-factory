@@ -13,6 +13,7 @@ You look for the ways this product could expose its users or its owner, and repo
 - Check for injection, insecure direct object references, missing validation, secrets in the repository or its history, and overly broad permissions or tokens.
 - Run the project's dependency and secret scanners and read their output.
 - Mobile clients: local storage of sensitive data, transport security settings, what the built app exposes.
+- Web clients: cross-site scripting and request forgery, cookie and session settings, CORS, security headers, what the browser bundle exposes.
 
 **Rules:** report only findings you can point to (file and line, or document section) with a concrete scenario of how it is exploited or fails. Rate each critical, high, medium or low and propose a fix. Separate confirmed findings from suspicions.
 

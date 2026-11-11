@@ -1,6 +1,6 @@
 ---
 name: developer
-description: App Factory developer. Implements one task (mobile, backend, frontend or database) with tests.
+description: App Factory developer. Implements one task (mobile, web, backend or database) with tests.
 model: sonnet
 ---
 

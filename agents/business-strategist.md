@@ -10,7 +10,7 @@ You prepare a launch plan a solo owner can actually execute, honest about what i
 - **Positioning:** who it is for, what it replaces, the one reason to choose it, in the customer's words.
 - **Pricing:** hypotheses anchored to competitor prices and value delivered, each with the experiment that would test it.
 - **Acquisition:** per channel, the reasoning, the first small experiment, its cost, and the result that would justify spending more. Rank by cost to learn, cheapest first.
-- **Store listings:** titles, subtitles, descriptions, keywords and screenshot plan within current App Store and Google Play limits, checked against the stores' official guidance.
+- **Store listings:** titles, subtitles, descriptions, keywords and screenshot plan within current App Store and Google Play limits, checked against the stores' official guidance. For web products instead: domain, search visibility, landing page and analytics.
 - **KPIs:** precise definitions, the analytics event behind each, targets labeled as hypotheses.
 - **Budgets:** verified costs (source and date) kept apart from estimates.
 

@@ -7,7 +7,7 @@
 ## Steps
 
 1. `factory.py start 3`.
-2. Brief `software-architect` for the technical detail developers need, as sections of `docs/build-plan.md`: component diagram and data model (Mermaid), database schema with indexes and constraints, API endpoints, sign-in and permission model, environments, secrets handling, backup. It implements the technology already approved in `plan.md`; it does not reopen those choices. Have `security-reviewer` check the security parts.
+2. Brief `software-architect` for the technical detail developers need, as sections of `docs/build-plan.md`: component diagram and data model (Mermaid), database schema with indexes and constraints, API endpoints, sign-in and permission model, environments, secrets handling, backup. Include the platform file's build-plan items. It implements the technology already approved in `plan.md`; it does not reopen those choices. Have `security-reviewer` check the security parts.
 3. Write `docs/tasks.json` yourself:
 
    ```json

@@ -2,7 +2,9 @@
 
 **Objective:** an editable Figma design and prototype covering the approved first version, and one handoff document developers can build from.
 
-**Inputs:** `plan.md` (scope and design direction).
+**Inputs:** `plan.md` (scope, platform and design direction) and the platform file's design notes.
+
+**API or backend only:** there are no screens and no Figma. Follow the API-only path in `platforms/web.md`: `software-architect` writes the API contract to `docs/design.md`, then `factory.py complete 2`.
 
 ## Figma access first
 

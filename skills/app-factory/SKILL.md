@@ -1,6 +1,6 @@
 ---
 name: app-factory
-description: Guided workflow from an app idea to a built, tested, launch-ready product, with a decision chat, plan.md, subagents and approval gates. Use for a new app idea, to continue or check an App Factory project, or to analyze an existing app repo.
+description: Guided workflow from a mobile or web app idea to a built, tested, launch-ready product, with a decision chat, plan.md, subagents and approval gates. Use for a new app idea, to continue or check an App Factory project, or to analyze an existing app repo.
 argument-hint: "[your idea | continue | status | analyze]"
 ---
 
@@ -34,6 +34,8 @@ Otherwise run `python3 <skill>/scripts/factory.py status` in the project folder.
 | 6 Launch | `stages/6-launch.md` | `docs/launch-plan.md` | 5 Launch |
 
 Read a guide only on entering its stage.
+
+**Platforms.** The platform (mobile, web, or both) is decided in stage 1 and recorded on the `Platform:` line of `plan.md`. What differs by platform (technology options, design constraints, test environments, launch items) is in `platforms/mobile.md` and `platforms/web.md`. Read only the file for the plan's platform, both if it is both, when a stage refers to it.
 
 ## Keeping token use low
 

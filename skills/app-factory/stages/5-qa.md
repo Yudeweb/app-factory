@@ -6,7 +6,7 @@
 
 1. `factory.py start 5`.
 2. Brief `qa-engineer` to test from the documents, not from developers' reports: every requirement and acceptance criterion in `plan.md`, the screens against `docs/design.md`, and the test plan. It builds the app from the documented instructions, runs the full automated suite, and exercises every main journey including error paths.
-3. Mobile apps: iOS simulators and Android emulators for the supported versions and screen sizes. Real devices only if the user provides them or approves a device-farm service. State what was covered.
+3. Test environments and platform checks come from the platform file (simulators and emulators for mobile; browsers, screen widths and audits for web). State what was covered and what was not.
 4. In parallel: `security-reviewer` runs dependency and secret scans and reviews sign-in, permissions and input handling; `devops-engineer` proves a clean build and deployment from the instructions alone; `technical-writer` checks README, setup, deployment and troubleshooting instructions against the code.
 5. Critical and major defects go back through the stage 4 task loop (add tasks, fix, re-verify) before continuing.
 6. Write `docs/qa-report.md`: what was run with counts and environments; status per requirement; defects found and fixed; known issues and limitations; security findings; what was not tested and why; a readiness judgment.
