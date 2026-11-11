@@ -1,16 +1,17 @@
 # App Factory
 
-A reusable Claude workflow that takes an app idea from a plain description to a researched, designed, built, tested and launch-ready product. It is a skill plus a team of specialist subagents, not a separate service: it runs inside your normal Claude sessions.
+A reusable Claude workflow that takes an app idea from a plain description to a designed, built, tested and launch-ready product. It is a skill plus a team of specialist subagents, not a separate service: it runs inside your normal Claude Code sessions.
 
-You give the idea and approve at gates. The workflow does the research, product definition, Figma design, architecture, planning, implementation, QA and go-to-market preparation, and writes everything down as it goes.
+It starts as a conversation. After a quick market check, it asks multiple-choice questions to decide the idea, scope, scale, design direction and technology together with you, and only then writes one `plan.md`. From there specialist agents design, plan, build and test, stopping at five approval gates.
 
 ## Status
 
 Early and largely unproven. Read this before relying on it.
 
-- **Tested:** the state script (`factory.py`) passes a simulated run of the whole lifecycle, including the cases it must refuse: starting a stage before the previous gate is approved, completing a stage with deliverables missing, a fourth attempt at a task, and dependency cycles.
+- **Tested:** the state script (`factory.py`) passes a simulated run of the whole lifecycle, including the cases it must refuse: starting a stage before the previous gate is approved, completing a stage whose required output is missing, a fourth attempt at a task, and dependency cycles.
 - **Not yet tested:** a complete run on a real app idea with live agents. The stage guides and agent definitions are instructions for Claude; how well they perform on a real project has not been measured.
-- **Not yet tested:** creating designs in Figma. Stage 3 depends on the Figma connector's write-to-canvas tool, which is in beta.
+- **Not yet measured:** token use. Version 2 is designed to use fewer tokens than version 1 (one quick research pass before the conversation, seven required documents instead of about 45, shorter instructions), but no real run has been measured.
+- **Not yet tested:** creating designs in Figma. Stage 2 depends on the Figma connector's write-to-canvas tool, which is in beta.
 - There is no automated test suite or CI in this repository yet.
 
 It is written for Claude Code (terminal, desktop app or IDE extension), which is where skills and subagents run.
@@ -23,61 +24,69 @@ It is written for Claude Code (terminal, desktop app or IDE extension), which is
 
 This copies the skill to `~/.claude/skills/app-factory` and eleven agents to `~/.claude/agents/`. Anything it would overwrite is moved to `~/.claude/backups/` first. Run it again after editing this folder to update. Start a new session afterwards so the skill and agents are picked up.
 
-Requirements: Python 3.9 or later, git, and for stage 3 the Figma connector connected to Claude with write access.
+Requirements: Python 3.9 or later, git, and for stage 2 the Figma connector connected to Claude with write access.
 
 ## Use
 
 1. Create an empty folder for the new app and open it in Claude.
 2. Run `/app-factory` followed by your idea, in as much or as little detail as you have.
-3. The first stop is the Idea Validation Report: scores for market need, business potential and technical feasibility, a recommendation, and a few questions.
-4. Approve, ask for changes, or reject. Each later gate works the same way.
+3. You get a short verdict on whether the idea makes sense, then multiple-choice questions (always with a free-text "Other"). Nothing is written to the project yet.
+4. When every important decision is made, it asks whether to create `plan.md`. Approving that plan is the first gate.
 
-To come back later: open the project folder and run `/app-factory continue`. For a quick look: `/app-factory status`, or read `docs/STATUS.md`.
+To come back later: open the project folder and run `/app-factory continue`. For a quick look: `/app-factory status`.
 
 ## Lifecycle
 
-| Stage | What happens | Gate |
-|---|---|---|
-| 0 | Idea recorded verbatim, project skeleton created | none |
-| 1 | Three parallel researchers, Idea Validation Report | Gate 1 |
-| 2 | PRD, functional spec, user stories, MVP scope, roadmap | Gate 2 |
-| 3 | UX structure, design system, screens and prototype in Figma | Gate 3 |
-| 4 | Architecture options compared, stack, database, costs, ADRs | Gate 4 |
-| 5 | Task breakdown, test strategy, CI/CD, definition of done | Gate 5 |
-| 6 | Autonomous implementation by the developer team | none |
-| 7 | Independent QA and release readiness report | Gate 6 |
-| 8 | Business strategy and go-to-market plan | Final gate |
+| Stage | What happens | Required output | Gate |
+|---|---|---|---|
+| 1 Discover | Quick viability scan, then the decision conversation | `plan.md` | 1 Plan |
+| 2 Design | Design system, screens and prototype in Figma | `docs/design.md` | 2 Design |
+| 3 Build plan | Technical design, tasks, test plan, CI/CD | `docs/build-plan.md`, `docs/tasks.json` | 3 Build plan |
+| 4 Implement | Developer agents work through the tasks | tasks done | none |
+| 5 QA | Independent verification and readiness report | `docs/qa-report.md` | 4 Acceptance |
+| 6 Launch | Positioning, pricing, go-to-market | `docs/launch-plan.md` | 5 Launch |
+
+### The decision conversation (stage 1)
+
+1. Quick viability scan: one researcher, a handful of searches, no file.
+2. A verdict in chat with sources and a confidence level.
+3. Questions to clarify the idea, then a choice: continue with a full research report, continue without it, pivot, or stop. The full report (`docs/market-research.md`) is written once, on the clarified idea, only if you want it.
+4. Scope and expected scale.
+5. Design direction, with suggested tools: Figma for the real design, and palette, typography, reference and AI-mockup tools for an early feel.
+6. Technology, explained at your level: what each choice is, the realistic alternatives with trade-offs, and a recommended option.
+7. A summary, then `plan.md`.
+
+Answers are kept in a small hidden file (`.factory/notes.md`) so an interrupted conversation can resume; it is removed once `plan.md` is written.
+
+Other documents (a detailed requirements document, API reference, runbook and so on) are written only when a later stage needs one or you ask.
 
 ## What a project folder contains
 
 ```
-README.md
-.factory/state.json        stage and gate state
+plan.md                    every decision, with reasons and a change log
+.factory/                  state, the original idea verbatim, agent run log
 docs/STATUS.md             generated status page
-docs/traceability.md       idea → requirement → story → screen → task → test
-docs/00-idea … 12-project-history
+docs/design.md, build-plan.md, tasks.json, qa-report.md, launch-plan.md
 ```
-
-`docs/10-decisions/` holds the Architecture Decision Records, `docs/11-agent-logs/log.jsonl` the record of agent runs, and `docs/12-project-history/` the changelog and changes to approved work.
 
 ## The team
 
 | Agent | Model | Used for |
 |---|---|---|
-| orchestrator (the main session) | Fable 5.2, or Opus 5.5 | planning, delegation, verification, gates |
+| orchestrator (the main session) | whichever model the session runs; the most capable available is recommended | the conversation, delegation, verification, gates |
 | senior-supervisor | Opus | selective independent review and stuck problems |
 | product-researcher, product-manager, ux-designer, software-architect, developer, qa-engineer, devops-engineer, security-reviewer, technical-writer, business-strategist | Sonnet | the work |
 
-The orchestrator model is whichever model your session runs on; pick it in the app's model selector.
-
 ## Changing it
 
-- **Model for a role:** edit `model:` in `agents/<role>.md` (`sonnet`, `opus`, `haiku`, `fable`, or a full model ID).
+- **Model for a role:** edit `model:` in `agents/<role>.md` (`sonnet`, `opus`, `haiku`, or a full model ID).
 - **A role's behavior:** edit the body of its agent file.
 - **A stage:** edit `skills/app-factory/stages/<n>-*.md`. If you change which files a stage must produce, change the matching list in `STAGES` at the top of `skills/app-factory/scripts/factory.py`.
 - **A new role:** add `agents/<name>.md` and mention it in the relevant stage guide and in the team list in `SKILL.md`.
 
-Run `./install.sh` after any change. Projects already in progress keep their own state and documents; they pick up the new instructions the next time the skill runs.
+Agent and skill descriptions are loaded into every Claude session, so keep them to one short line.
+
+Run `./install.sh` after any change.
 
 ## State script
 
@@ -85,24 +94,26 @@ Run `./install.sh` after any change. Projects already in progress keep their own
 
 | Command | Effect |
 |---|---|
-| `status` | print the lifecycle, refresh `docs/STATUS.md` |
-| `start N` | begin stage N; refused unless every earlier stage is finished and approved |
-| `complete N` | finish stage N; refused if required deliverables are missing |
+| `status` | print the lifecycle; refresh `docs/STATUS.md` once `plan.md` exists |
+| `start N` | begin stage N (1 to 6); refused unless every earlier stage is finished and approved |
+| `complete N` | finish stage N; refused if its required output is missing |
 | `approve N --quote "…"` | record your approval with your words |
 | `request-changes N --note "…"` | send a stage back for revision |
 | `reject N --note "…"` | record a rejection |
 | `reopen N --note "…"` | change a finished stage; later stages are flagged for review |
-| `task validate / list / ready / start / done / fail / defer / reset` | stage 6 work items with dependencies and a three-attempt limit |
+| `task validate / list / ready / start / done / fail / defer / reset` | stage 4 work items with dependencies and a three-attempt limit |
 | `log …` | record an agent run |
 
 ## Known limitations
 
 - Gates are enforced by the script and the workflow's instructions inside a Claude session. That is a strong convention, not a security boundary.
 - There is no web dashboard; `docs/STATUS.md` and `/app-factory status` take its place.
+- Projects started with version 1 (nine stages) cannot be continued with version 2.
 - Figma's write-to-canvas tool is in beta and depends on your Figma seat. If it is unavailable the workflow asks whether to wait or to use a clickable HTML prototype as a stand-in.
+- The design tools the workflow suggests are third-party products that change; it is told to check before recommending one.
 - Market research uses public web sources only. Scores are reasoned judgments with stated confidence.
 - Mobile testing runs on simulators and emulators. Real devices, store submission, paid services and production deployment need you.
-- Long implementation stages span several sessions; they resume from `state.json` and `tasks.json`, not from conversation memory.
+- Long implementation stages span several sessions; they resume from the state and task files, not from conversation memory.
 
 ## License
 

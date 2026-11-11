@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""App Factory state keeper.
+"""App Factory state keeper (v2).
 
 Run from the project folder. This script is the only thing that changes stage
 state, so gates and deliverable checks are enforced in one place:
 
   factory.py init --name NAME --idea-file FILE
   factory.py status
-  factory.py start N | complete N
+  factory.py start N | complete N                      (N = 1..6)
   factory.py approve N --quote "user's words" | request-changes N --note ... |
              reject N --note ... | reopen N --note ...
   factory.py task validate | list | ready | start ID | done ID --evidence ... |
@@ -26,81 +26,30 @@ import re
 import sys
 import uuid
 
-VERSION = "1.0"
+VERSION = "2.0"
 MAX_ATTEMPTS = 3
 
 ROOT = pathlib.Path.cwd()
-STATE = ROOT / ".factory" / "state.json"
-DOCS = ROOT / "docs"
-TASKS = DOCS / "05-planning" / "tasks.json"
-LOG = DOCS / "11-agent-logs" / "log.jsonl"
-CHANGES = DOCS / "12-project-history" / "changes.md"
+FACTORY = ROOT / ".factory"
+STATE = FACTORY / "state.json"
+IDEA = FACTORY / "idea.md"
+LOG = FACTORY / "agent-log.jsonl"
+PLAN = ROOT / "plan.md"
+TASKS = ROOT / "docs" / "tasks.json"
+STATUS_MD = ROOT / "docs" / "STATUS.md"
 
-DIRS = [
-    "00-idea", "01-research", "02-product", "03-design", "04-architecture",
-    "05-planning", "06-development", "07-testing", "08-deployment",
-    "09-business", "10-decisions", "11-agent-logs", "12-project-history",
-]
-
+# Stage numbers are 1-based for the user; index = number - 1.
 # gate: label of the approval gate that follows the stage, or None.
 STAGES = [
-    {"name": "Idea and initialization", "gate": None, "deliverables": [
-        "docs/00-idea/original-idea.md",
-        "docs/00-idea/project-overview.md",
-        "docs/00-idea/assumptions-and-questions.md"]},
-    {"name": "Market research and validation", "gate": "Gate 1", "deliverables": [
-        "docs/01-research/idea-validation-report.md",
-        "docs/01-research/competitor-analysis.md",
-        "docs/01-research/sources.md"]},
-    {"name": "Product definition", "gate": "Gate 2", "deliverables": [
-        "docs/02-product/prd.md",
-        "docs/02-product/functional-spec.md",
-        "docs/02-product/non-functional-requirements.md",
-        "docs/02-product/user-stories.md",
-        "docs/02-product/mvp-scope.md",
-        "docs/02-product/roadmap.md"]},
-    {"name": "UI/UX design", "gate": "Gate 3", "deliverables": [
-        "docs/03-design/figma-links.md",
-        "docs/03-design/screen-inventory.md",
-        "docs/03-design/user-flows.md",
-        "docs/03-design/design-system.md",
-        "docs/03-design/design-spec.md",
-        "docs/03-design/handoff.md"]},
-    {"name": "Architecture and technology", "gate": "Gate 4", "deliverables": [
-        "docs/04-architecture/architecture.md",
-        "docs/04-architecture/tech-stack.md",
-        "docs/04-architecture/database.md",
-        "docs/04-architecture/api-spec.md",
-        "docs/04-architecture/infrastructure.md",
-        "docs/04-architecture/security.md",
-        "docs/04-architecture/scalability.md",
-        "docs/04-architecture/operating-costs.md"]},
-    {"name": "Planning, QA strategy, CI/CD", "gate": "Gate 5", "deliverables": [
-        "docs/05-planning/development-plan.md",
-        "docs/05-planning/tasks.json",
-        "docs/05-planning/repository-spec.md",
-        "docs/05-planning/test-strategy.md",
-        "docs/05-planning/test-cases.md",
-        "docs/05-planning/cicd.md",
-        "docs/05-planning/definition-of-done.md",
-        "docs/05-planning/release-and-rollback.md"]},
-    {"name": "Autonomous implementation", "gate": None, "deliverables": [
-        "docs/06-development/implementation-log.md"]},
-    {"name": "Final QA", "gate": "Gate 6 (product acceptance)", "deliverables": [
-        "docs/07-testing/test-results.md",
-        "docs/07-testing/known-issues.md",
-        "docs/07-testing/release-readiness-report.md",
-        "docs/08-deployment/deployment.md"]},
-    {"name": "Business and go-to-market", "gate": "Final gate", "deliverables": [
-        "docs/09-business/business-strategy.md",
-        "docs/09-business/go-to-market.md",
-        "docs/09-business/pricing.md",
-        "docs/09-business/store-listing.md",
-        "docs/09-business/landing-page-spec.md",
-        "docs/09-business/kpis.md",
-        "docs/09-business/launch-checklist.md",
-        "docs/09-business/post-launch-roadmap.md"]},
+    {"name": "Discover", "gate": "Gate 1 (plan)", "deliverables": ["plan.md"]},
+    {"name": "Design", "gate": "Gate 2 (design)", "deliverables": ["docs/design.md"]},
+    {"name": "Build plan", "gate": "Gate 3 (build plan)",
+     "deliverables": ["docs/build-plan.md", "docs/tasks.json"]},
+    {"name": "Implement", "gate": None, "deliverables": []},
+    {"name": "QA", "gate": "Gate 4 (acceptance)", "deliverables": ["docs/qa-report.md"]},
+    {"name": "Launch", "gate": "Gate 5 (launch)", "deliverables": ["docs/launch-plan.md"]},
 ]
+BUILD_PLAN, IMPLEMENT = 3, 4  # stage numbers with task checks
 
 TASK_STATUSES = {"pending", "in_progress", "done", "failed", "escalated", "deferred"}
 
@@ -127,21 +76,33 @@ def write_json(path: pathlib.Path, data) -> None:
 def load_state() -> dict:
     if not STATE.exists():
         die("no App Factory project in this folder (run init first).")
-    return json.loads(STATE.read_text(encoding="utf-8"))
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    if not str(state.get("factory_version", "")).startswith("2"):
+        die("this project was created with App Factory v1 (nine stages), which this "
+            "version cannot continue. Use the v1 skill, or start a new project.")
+    return state
 
 
-def stage_index(value: str) -> int:
+def stage_number(value: str) -> int:
     try:
         n = int(value)
     except ValueError:
-        raise argparse.ArgumentTypeError("stage must be a number 0-8")
-    if not 0 <= n < len(STAGES):
-        raise argparse.ArgumentTypeError("stage must be a number 0-8")
+        raise argparse.ArgumentTypeError(f"stage must be a number 1-{len(STAGES)}")
+    if not 1 <= n <= len(STAGES):
+        raise argparse.ArgumentTypeError(f"stage must be a number 1-{len(STAGES)}")
     return n
 
 
+def spec(n: int) -> dict:
+    return STAGES[n - 1]
+
+
+def get(state: dict, n: int) -> dict:
+    return state["stages"][n - 1]
+
+
 def is_done(n: int, st: dict) -> bool:
-    return st["status"] == ("approved" if STAGES[n]["gate"] else "completed")
+    return st["status"] == ("approved" if spec(n)["gate"] else "completed")
 
 
 def record(st: dict, event: str, note: str = "") -> None:
@@ -152,19 +113,15 @@ def record(st: dict, event: str, note: str = "") -> None:
 
 
 def missing_files(paths) -> list:
-    out = []
-    for rel in paths:
-        p = ROOT / rel
-        if not p.is_file() or p.stat().st_size == 0:
-            out.append(rel)
-    return out
+    return [rel for rel in paths
+            if not (ROOT / rel).is_file() or (ROOT / rel).stat().st_size == 0]
 
 
 # ------------------------------------------------------------------ tasks
 
 def load_tasks() -> dict:
     if not TASKS.exists():
-        die(f"{TASKS.relative_to(ROOT)} does not exist yet (it is written in stage 5).")
+        die(f"{TASKS.relative_to(ROOT)} does not exist yet (it is written in stage {BUILD_PLAN}).")
     try:
         data = json.loads(TASKS.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -235,16 +192,10 @@ def is_ready(data: dict, t: dict) -> bool:
             and t["attempts"] < MAX_ATTEMPTS and deps_done(data, t))
 
 
-def task_counts(data: dict) -> dict:
-    counts = {}
-    for t in data["tasks"]:
-        counts[t["status"]] = counts.get(t["status"], 0) + 1
-    return counts
-
-
 # --------------------------------------------------------------- commands
 
 def cmd_init(args) -> None:
+    """Creates only hidden state; no project documents exist until plan.md."""
     if STATE.exists():
         print(f"Already initialized: {load_state()['id']}. Nothing changed.")
         return
@@ -252,57 +203,24 @@ def cmd_init(args) -> None:
     if not idea.strip():
         die("the idea file is empty.")
     slug = re.sub(r"[^a-z0-9]+", "-", args.name.lower()).strip("-") or "project"
-    today = datetime.date.today().isoformat()
-    pid = f"{slug}-{today}-{uuid.uuid4().hex[:6]}"
-
-    for d in DIRS:
-        (DOCS / d).mkdir(parents=True, exist_ok=True)
-
-    def seed(rel: str, text: str) -> None:
-        p = ROOT / rel
-        if not p.exists():
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(text, encoding="utf-8")
-
-    seed("docs/00-idea/original-idea.md",
-         f"# Original idea\n\n- Project: {args.name} (`{pid}`)\n- Submitted: {now()}\n"
-         "- This file is the user's idea exactly as written. Never edit it.\n\n---\n\n"
-         + idea.rstrip("\n") + "\n")
-    seed("README.md",
-         f"# {args.name}\n\nProject `{pid}`, started {today} with App Factory.\n\n"
-         "- Current status: [docs/STATUS.md](docs/STATUS.md)\n"
-         "- Original idea: [docs/00-idea/original-idea.md](docs/00-idea/original-idea.md)\n"
-         "- Decisions: [docs/10-decisions/](docs/10-decisions/)\n"
-         "- History: [docs/12-project-history/](docs/12-project-history/)\n"
-         "- Traceability: [docs/traceability.md](docs/traceability.md)\n\n"
-         "To continue this project, open this folder in Claude and run `/app-factory continue`.\n")
-    seed("docs/traceability.md",
-         "# Traceability\n\nIdea → assumption (A) → requirement (R) → user story (US) → "
-         "screen (SCR) → component (C) → task (T) → test (TC).\n\n"
-         "| Assumption | Requirement | User story | Screen | Component | Task | Test | Status |\n"
-         "|---|---|---|---|---|---|---|---|\n")
-    seed("docs/12-project-history/changelog.md",
-         f"# Changelog\n\n- {today}: project created.\n")
-    seed("docs/12-project-history/changes.md",
-         "# Changes to approved work\n\nEach entry: what changed, why, what it affects, "
-         "and the approval.\n")
-
-    state = {
+    pid = f"{slug}-{datetime.date.today().isoformat()}-{uuid.uuid4().hex[:6]}"
+    FACTORY.mkdir(parents=True, exist_ok=True)
+    IDEA.write_text(idea, encoding="utf-8")  # verbatim, never edited afterwards
+    write_json(STATE, {
         "factory_version": VERSION, "id": pid, "name": args.name, "created": now(),
         "stages": [{"status": "pending", "history": []} for _ in STAGES],
-    }
-    write_json(STATE, state)
+    })
     print(f"Initialized project {pid}")
 
 
 def cmd_start(args) -> None:
     state = load_state()
-    n, st = args.stage, state["stages"][args.stage]
-    for m in range(n):
-        if not is_done(m, state["stages"][m]):
-            gate = STAGES[m]["gate"]
+    n, st = args.stage, get(state, args.stage)
+    for m in range(1, n):
+        if not is_done(m, get(state, m)):
+            gate = spec(m)["gate"]
             need = f"approved at {gate}" if gate else "completed"
-            die(f"stage {m} ({STAGES[m]['name']}) is '{state['stages'][m]['status']}'; "
+            die(f"stage {m} ({spec(m)['name']}) is '{get(state, m)['status']}'; "
                 f"it must be {need} before stage {n} can start.")
     if st["status"] == "in_progress":
         print(f"Stage {n} is already in progress.")
@@ -313,27 +231,25 @@ def cmd_start(args) -> None:
     st.setdefault("started", now())
     record(st, "started")
     write_json(STATE, state)
-    print(f"Stage {n} started: {STAGES[n]['name']}")
+    print(f"Stage {n} started: {spec(n)['name']}")
 
 
 def cmd_complete(args) -> None:
     state = load_state()
-    n, st = args.stage, state["stages"][args.stage]
+    n, st = args.stage, get(state, args.stage)
     if st["status"] != "in_progress":
         die(f"stage {n} is '{st['status']}', not in progress.")
-    problems = [f"missing or empty: {p}" for p in missing_files(STAGES[n]["deliverables"])]
-    if n == 4 and not list((DOCS / "10-decisions").glob("ADR-*.md")):
-        problems.append("no ADR-*.md in docs/10-decisions/")
-    if n == 5 and TASKS.exists():
+    problems = [f"missing or empty: {p}" for p in missing_files(spec(n)["deliverables"])]
+    if n == BUILD_PLAN and TASKS.exists():
         problems += [f"tasks.json: {e}" for e in task_errors(load_tasks())]
-    if n == 6:
+    if n == IMPLEMENT:
         open_tasks = [t["id"] for t in load_tasks()["tasks"]
                       if t["status"] not in ("done", "deferred")]
         if open_tasks:
             problems.append("tasks not done or deferred: " + ", ".join(open_tasks))
     if problems:
         die(f"stage {n} cannot be completed:\n  - " + "\n  - ".join(problems))
-    gate = STAGES[n]["gate"]
+    gate = spec(n)["gate"]
     st["status"] = "awaiting_approval" if gate else "completed"
     st["completed"] = now()
     record(st, "completed")
@@ -345,8 +261,8 @@ def cmd_complete(args) -> None:
 
 
 def gated_stage(args, state) -> dict:
-    n, st = args.stage, state["stages"][args.stage]
-    if not STAGES[n]["gate"]:
+    n, st = args.stage, get(state, args.stage)
+    if not spec(n)["gate"]:
         die(f"stage {n} has no approval gate.")
     if st["status"] != "awaiting_approval":
         die(f"stage {n} is '{st['status']}', not awaiting approval.")
@@ -362,7 +278,7 @@ def cmd_approve(args) -> None:
     st["approval"] = {"at": now(), "quote": args.quote.strip()}
     record(st, "approved", args.quote.strip())
     write_json(STATE, state)
-    print(f"{STAGES[args.stage]['gate']} approved.")
+    print(f"{spec(args.stage)['gate']} approved.")
 
 
 def cmd_request_changes(args) -> None:
@@ -385,41 +301,41 @@ def cmd_reject(args) -> None:
 
 def cmd_reopen(args) -> None:
     state = load_state()
-    n, st = args.stage, state["stages"][args.stage]
+    n, st = args.stage, get(state, args.stage)
     if not is_done(n, st):
         die(f"stage {n} is '{st['status']}'; only finished stages can be reopened.")
     st["status"] = "in_progress"
     st.pop("approval", None)
     record(st, "reopened", args.note)
     flagged = []
-    for m in range(n + 1, len(STAGES)):
-        later = state["stages"][m]
+    for m in range(n + 1, len(STAGES) + 1):
+        later = get(state, m)
         if later["status"] != "pending":
             later["status"] = "needs_review"
             later.pop("approval", None)
             record(later, "needs_review", f"stage {n} reopened")
             flagged.append(str(m))
     write_json(STATE, state)
-    if CHANGES.exists():
-        with CHANGES.open("a", encoding="utf-8") as fh:
-            fh.write(f"\n## {now()}: stage {n} reopened\n\n- Reason: {args.note}\n"
-                     f"- Later stages flagged for review: {', '.join(flagged) or 'none'}\n"
-                     "- Impact and approval: _to be filled in_\n")
+    if PLAN.exists():  # plan.md ends with its change log
+        with PLAN.open("a", encoding="utf-8") as fh:
+            fh.write(f"\n- {now()}: stage {n} ({spec(n)['name']}) reopened. Reason: {args.note} "
+                     f"Later stages to review: {', '.join(flagged) or 'none'}.\n")
     print(f"Stage {n} reopened. Flagged for review: {', '.join(flagged) or 'none'}.")
 
 
 def next_step(state: dict) -> str:
-    for n, st in enumerate(state["stages"]):
+    for n in range(1, len(STAGES) + 1):
+        st = get(state, n)
         if is_done(n, st):
             continue
-        s, name = st["status"], STAGES[n]["name"]
+        name = spec(n)["name"]
         return {
             "pending": f"start stage {n} ({name}).",
             "in_progress": f"stage {n} ({name}) is in progress; complete it when its deliverables are ready.",
-            "awaiting_approval": f"waiting for the user's decision at {STAGES[n]['gate']} (stage {n}, {name}).",
+            "awaiting_approval": f"waiting for the user's decision at {spec(n)['gate']} (stage {n}, {name}).",
             "needs_review": f"stage {n} ({name}) needs review after an earlier stage was reopened; start it again.",
             "rejected": f"stage {n} ({name}) was rejected; agree a new direction, then start it again.",
-        }.get(s, f"stage {n} is '{s}'.")
+        }.get(st["status"], f"stage {n} is '{st['status']}'.")
     return "lifecycle complete."
 
 
@@ -429,26 +345,32 @@ def cmd_status(args) -> None:
         return
     state = load_state()
     rows = []
-    for n, st in enumerate(state["stages"]):
-        gate = STAGES[n]["gate"] or "none"
+    for n in range(1, len(STAGES) + 1):
+        st = get(state, n)
         when = st.get("approval", {}).get("at") or st.get("completed") or st.get("started") or ""
-        rows.append((str(n), STAGES[n]["name"], st["status"].replace("_", " "), gate, when))
+        rows.append((str(n), spec(n)["name"], st["status"].replace("_", " "),
+                     spec(n)["gate"] or "none", when))
     lines = [f"Project: {state['name']} ({state['id']})", f"Next: {next_step(state)}", ""]
-    for r in rows:
-        lines.append(f"  {r[0]}  {r[1]:<32} {r[2]:<18} {r[3]:<28} {r[4]}")
-    task_line = ""
+    lines += [f"  {r[0]}  {r[1]:<12} {r[2]:<18} {r[3]:<22} {r[4]}" for r in rows]
+    if (FACTORY / "notes.md").exists():
+        lines += ["", "Discovery notes in progress: .factory/notes.md"]
+    task_line, data = "", None
     if TASKS.exists():
         data = load_tasks()
-        counts = task_counts(data)
+        counts = {}
+        for t in data["tasks"]:
+            counts[t["status"]] = counts.get(t["status"], 0) + 1
         task_line = "Tasks: " + ", ".join(f"{v} {k.replace('_', ' ')}" for k, v in sorted(counts.items()))
         lines += ["", task_line]
     print("\n".join(lines))
 
+    if not PLAN.exists():
+        return  # no project documents before plan.md
     md = [f"# Status: {state['name']}", "", f"- Project: `{state['id']}`",
           f"- Updated: {now()}", f"- Next: {next_step(state)}", "",
           "| Stage | Name | Status | Gate | Last change |", "|---|---|---|---|---|"]
     md += [f"| {' | '.join(r)} |" for r in rows]
-    if task_line:
+    if data:
         md += ["", "## Tasks", "", task_line, "",
                "| ID | Title | Status | Attempts |", "|---|---|---|---|"]
         md += [f"| {t.get('id')} | {t.get('title', '')} | {t['status'].replace('_', ' ')} | {t['attempts']} |"
@@ -459,12 +381,12 @@ def cmd_status(args) -> None:
         for line in recent:
             e = json.loads(line)
             md.append(f"| {e['at']} | {e['agent']} | {e['model']} | {e['task']} | {e['outcome']} |")
-    (DOCS / "STATUS.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    STATUS_MD.parent.mkdir(parents=True, exist_ok=True)
+    STATUS_MD.write_text("\n".join(md) + "\n", encoding="utf-8")
 
 
 def cmd_log(args) -> None:
     load_state()
-    LOG.parent.mkdir(parents=True, exist_ok=True)
     entry = {"at": now(), "agent": args.agent, "model": args.model,
              "task": args.task, "outcome": args.outcome}
     if args.note:
@@ -490,8 +412,8 @@ def cmd_task(args) -> None:
             print(f"  {t.get('id', '?'):<7} {t['status']:<12} attempts {t['attempts']}  deps {deps:<14} {t.get('title', '')}")
         return
     if action == "ready":
-        ready = [t for t in data["tasks"] if is_ready(data, t)]
-        ready.sort(key=lambda t: t.get("priority", 99))
+        ready = sorted((t for t in data["tasks"] if is_ready(data, t)),
+                       key=lambda t: t.get("priority", 99))
         if not ready:
             print("No tasks are ready.")
         for t in ready:
@@ -563,21 +485,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="App Factory state keeper")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("init", help="create the project skeleton")
+    p = sub.add_parser("init", help="create the hidden project state")
     p.add_argument("--name", required=True)
     p.add_argument("--idea-file", required=True, help="file holding the idea verbatim")
     p.set_defaults(func=cmd_init)
 
-    sub.add_parser("status", help="show the lifecycle and refresh docs/STATUS.md").set_defaults(func=cmd_status)
+    sub.add_parser("status", help="show the lifecycle; refresh docs/STATUS.md once plan.md exists").set_defaults(func=cmd_status)
 
     for name, func, helptext in (("start", cmd_start, "begin a stage"),
                                  ("complete", cmd_complete, "finish a stage (checks deliverables)")):
         p = sub.add_parser(name, help=helptext)
-        p.add_argument("stage", type=stage_index)
+        p.add_argument("stage", type=stage_number)
         p.set_defaults(func=func)
 
     p = sub.add_parser("approve", help="record the user's approval of a gate")
-    p.add_argument("stage", type=stage_index)
+    p.add_argument("stage", type=stage_number)
     p.add_argument("--quote", required=True, help="the user's own words")
     p.set_defaults(func=cmd_approve)
 
@@ -585,7 +507,7 @@ def main() -> None:
                                  ("reject", cmd_reject, "user rejected at a gate"),
                                  ("reopen", cmd_reopen, "change an already finished stage")):
         p = sub.add_parser(name, help=helptext)
-        p.add_argument("stage", type=stage_index)
+        p.add_argument("stage", type=stage_number)
         p.add_argument("--note", required=True)
         p.set_defaults(func=func)
 
@@ -597,7 +519,7 @@ def main() -> None:
     p.add_argument("--note", default="")
     p.set_defaults(func=cmd_log)
 
-    p = sub.add_parser("task", help="work items for stage 6")
+    p = sub.add_parser("task", help="work items for the implementation stage")
     p.add_argument("action", choices=["validate", "list", "ready", "start", "done", "fail", "defer", "reset"])
     p.add_argument("id", nargs="?")
     p.add_argument("--evidence")
