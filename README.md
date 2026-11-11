@@ -10,7 +10,7 @@ Early and largely unproven. Read this before relying on it.
 
 - **Tested:** the state script (`factory.py`) passes a simulated run of the whole lifecycle, including the cases it must refuse: starting a stage before the previous gate is approved, completing a stage whose required output is missing, a fourth attempt at a task, and dependency cycles.
 - **Not yet tested:** a complete run on a real app idea with live agents. The stage guides and agent definitions are instructions for Claude; how well they perform on a real project has not been measured.
-- **Partly tested:** an earlier version of the analyze mode ran once on a real iOS repository and completed end to end. The current version, which asks about your intentions and records a vision, has not been run on a real repository.
+- **Tested once:** the analyze mode, in its current form, on one real iOS repository. It completed end to end: two rounds of intent questions, market scan and code review in parallel, the repository's 654 package tests run with the owner's agreement, a verdict with gap table and path to shipment, and a `vision.md` written. The market scan still left several questions unresolved even when told to open pages, so treat its competitor and pricing findings as weak evidence. One run is not a measure of quality.
 - **Not yet measured:** token use. Version 2 is designed to use fewer tokens than version 1 (one quick research pass before the conversation, seven required documents instead of about 45, shorter instructions), but no real run has been measured.
 - **Not yet tested:** creating designs in Figma. Stage 2 depends on the Figma connector's write-to-canvas tool, which is in beta.
 - There is no automated test suite or CI in this repository yet.
