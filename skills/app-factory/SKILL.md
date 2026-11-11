@@ -1,7 +1,7 @@
 ---
 name: app-factory
-description: Guided workflow from an app idea to a built, tested, launch-ready product, with a decision chat, plan.md, subagents and approval gates. Use for a new app idea, or to continue or check an App Factory project.
-argument-hint: "[your idea | continue | status]"
+description: Guided workflow from an app idea to a built, tested, launch-ready product, with a decision chat, plan.md, subagents and approval gates. Use for a new app idea, to continue or check an App Factory project, or to analyze an existing app repo.
+argument-hint: "[your idea | continue | status | analyze]"
 ---
 
 # App Factory
@@ -14,7 +14,9 @@ User request: $ARGUMENTS
 
 ## Start
 
-Run `python3 <skill>/scripts/factory.py status` in the project folder.
+**If the request starts with "analyze"** (assess the existing repository), read `modes/analyze.md` and follow only that; the lifecycle, state script and gates below do not apply.
+
+Otherwise run `python3 <skill>/scripts/factory.py status` in the project folder.
 
 - No project and the user gave an idea: read `stages/1-discover.md`.
 - Project exists: the output names the current stage and what it waits for. Read that stage's guide and continue from recorded state (`.factory/`, `plan.md`, `docs/`), never from memory of the conversation.

@@ -10,6 +10,7 @@ Early and largely unproven. Read this before relying on it.
 
 - **Tested:** the state script (`factory.py`) passes a simulated run of the whole lifecycle, including the cases it must refuse: starting a stage before the previous gate is approved, completing a stage whose required output is missing, a fourth attempt at a task, and dependency cycles.
 - **Not yet tested:** a complete run on a real app idea with live agents. The stage guides and agent definitions are instructions for Claude; how well they perform on a real project has not been measured.
+- **Not yet tested:** the analyze mode on a real repository.
 - **Not yet measured:** token use. Version 2 is designed to use fewer tokens than version 1 (one quick research pass before the conversation, seven required documents instead of about 45, shorter instructions), but no real run has been measured.
 - **Not yet tested:** creating designs in Figma. Stage 2 depends on the Figma connector's write-to-canvas tool, which is in beta.
 - There is no automated test suite or CI in this repository yet.
@@ -34,6 +35,18 @@ Requirements: Python 3.9 or later, git, and for stage 2 the Figma connector conn
 4. When every important decision is made, it asks whether to create `plan.md`. Approving that plan is the first gate.
 
 To come back later: open the project folder and run `/app-factory continue`. For a quick look: `/app-factory status`.
+
+## Analyze an existing repo
+
+Open any app repository in Claude and run `/app-factory analyze`. This is separate from the lifecycle below: it never touches stage state or gates and changes nothing in the repository.
+
+It reads the code, documentation and git history, runs safe checks (dependency listing, outdated and vulnerable packages) without building or running the app, and does one quick market scan. You get a verdict in chat on three things, each scored 1 to 5 with a confidence level:
+
+- **the idea:** problem, users, and how it compares with what already exists;
+- **monetization and business:** the model the repo states or implies, against competitor pricing and running costs;
+- **the technical stack:** whether it fits the idea and likely scale, risks and quality signals.
+
+It ends with prioritized recommendations and a list of what it could not determine, then asks whether to save the report as `docs/app-analysis.md`.
 
 ## Lifecycle
 
