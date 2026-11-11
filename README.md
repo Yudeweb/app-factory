@@ -13,7 +13,7 @@ Early and largely unproven. Read this before relying on it.
 - **Tested once:** the analyze mode, in its current form, on one real iOS repository. It completed end to end: two rounds of intent questions, market scan and code review in parallel, the repository's 654 package tests run with the owner's agreement, a verdict with gap table and path to shipment, and a `vision.md` written. The market scan still left several questions unresolved even when told to open pages, so treat its competitor and pricing findings as weak evidence. One run is not a measure of quality.
 - **Not yet tested:** the web path (web applications, installable web apps, content sites, APIs). It was added after the mobile path and has not been run on a real idea.
 - **Not yet measured:** token use. Version 2 is designed to use fewer tokens than version 1 (one quick research pass before the conversation, seven required documents instead of about 45, shorter instructions), but no real run has been measured.
-- **Not yet tested:** creating designs in Figma. Stage 2 depends on the Figma connector's write-to-canvas tool, which is in beta.
+- **Not yet tested:** the redesigned design stage. It now offers four ways to see the screens (real screens in the simulator or browser, a high-fidelity coded prototype, Penpot, or Figma with a paid seat) and checks the result itself before showing it. None of the four has been exercised since the change, and the Penpot path has never been run. An earlier test on a real idea failed at this stage: Figma's free plan ran out and the fallback prototype was broken and too plain, which is what prompted the redesign.
 - There is no automated test suite or CI in this repository yet.
 
 It is written for Claude Code (terminal, desktop app or IDE extension), which is where skills and subagents run.
@@ -26,7 +26,7 @@ It is written for Claude Code (terminal, desktop app or IDE extension), which is
 
 This copies the skill to `~/.claude/skills/app-factory` and eleven agents to `~/.claude/agents/`. Anything it would overwrite is moved to `~/.claude/backups/` first. Run it again after editing this folder to update. Start a new session afterwards so the skill and agents are picked up.
 
-Requirements: Python 3.9 or later, git, and for stage 2 the Figma connector connected to Claude with write access.
+Requirements: Python 3.9 or later and git. Stage 2 needs one way to show screens: the tools to run the app's framework (for example Xcode and a simulator), or just a browser for a coded prototype, or a Penpot or paid Figma account connected to Claude.
 
 ## Use
 
@@ -45,7 +45,7 @@ The workflow is the same for every product; the platform is one of the decisions
 - **Web:** a web application, an installable web app (PWA), a content or marketing site, or an API or backend with no interface.
 - **Both:** one project and one plan, with a shared backend.
 
-What differs by platform (technology options, design constraints, how QA tests, what launch involves) lives in two small files, `platforms/mobile.md` and `platforms/web.md`, and only the relevant one is read. For an API-only product there are no screens, so the design stage produces the API contract instead of a Figma design.
+What differs by platform (technology options, design constraints, how QA tests, what launch involves) lives in two small files, `platforms/mobile.md` and `platforms/web.md`, and only the relevant one is read. For an API-only product there are no screens, so the design stage produces the API contract instead of screens.
 
 ## Analyze an existing repo
 
@@ -68,7 +68,7 @@ Finally it asks whether to save the report as `docs/app-analysis.md`.
 | Stage | What happens | Required output | Gate |
 |---|---|---|---|
 | 1 Discover | Quick viability scan, then the decision conversation | `plan.md` | 1 Plan |
-| 2 Design | Design system, screens and prototype in Figma (API contract for API-only products) | `docs/design.md` | 2 Design |
+| 2 Design | Design system, screens and prototype in the design tool you choose (API contract for API-only products) | `docs/design.md` | 2 Design |
 | 3 Build plan | Technical design, tasks, test plan, CI/CD | `docs/build-plan.md`, `docs/tasks.json` | 3 Build plan |
 | 4 Implement | Developer agents work through the tasks | tasks done | none |
 | 5 QA | Independent verification and readiness report | `docs/qa-report.md` | 4 Acceptance |
@@ -80,7 +80,7 @@ Finally it asks whether to save the report as `docs/app-analysis.md`.
 2. A verdict in chat with sources and a confidence level.
 3. Questions to clarify the idea, then a choice: continue with a full research report, continue without it, pivot, or stop. The full report (`docs/market-research.md`) is written once, on the clarified idea, only if you want it.
 4. Scope and expected scale.
-5. Design direction, with suggested tools: Figma for the real design, and palette, typography, reference and AI-mockup tools for an early feel.
+5. Design direction, with suggested tools for palette, typography, reference screens and quick AI mockups, and the options for seeing the real screens in stage 2.
 6. Technology, explained at your level: what each choice is, the realistic alternatives with trade-offs, and a recommended option.
 7. A summary, then `plan.md`.
 
@@ -96,6 +96,17 @@ plan.md                    every decision, with reasons and a change log
 docs/STATUS.md             generated status page
 docs/design.md, build-plan.md, tasks.json, qa-report.md, launch-plan.md
 ```
+
+### Seeing the screens (stage 2)
+
+The design stage asks how you want to see the app before it is built:
+
+- **Real screens:** the interface built in the app's own framework with sample data, running in the iOS Simulator or a browser. Highest fidelity, and the work carries into the build.
+- **High-fidelity coded prototype:** one self-contained clickable file in a phone frame, for when nothing can be run yet.
+- **Penpot:** a free editable design file through Penpot's MCP server.
+- **Figma:** with a paid seat only.
+
+Whatever the tool, the workflow holds to one quality bar (real colours and type, every screen and state, realistic content, working journeys), then opens the result itself, walks each journey, takes screenshots and fixes problems before showing you the screenshots and the link.
 
 ## The team
 
@@ -137,7 +148,8 @@ Run `./install.sh` after any change.
 - Gates are enforced by the script and the workflow's instructions inside a Claude session. That is a strong convention, not a security boundary.
 - There is no web dashboard; `docs/STATUS.md` and `/app-factory status` take its place.
 - Projects started with version 1 (nine stages) cannot be continued with version 2.
-- Figma's write-to-canvas tool is in beta and depends on your Figma seat. If it is unavailable the workflow asks whether to wait or to use a clickable HTML prototype as a stand-in.
+- Figma's free plan allows only a handful of AI tool calls a month, too few for a full design, so the workflow uses Figma only with a paid seat. Penpot's MCP server is the free editable alternative but is untested here.
+- A design is only as good as the model's visual work; the workflow checks its own screens before showing them, but expect to ask for revisions.
 - The design tools the workflow suggests are third-party products that change; it is told to check before recommending one.
 - Market research uses public web sources only. Scores are reasoned judgments with stated confidence.
 - Mobile testing runs on simulators and emulators. Real devices, store submission, paid services and production deployment need you.

@@ -18,4 +18,4 @@ Read when `plan.md` says the platform is web or both. In stage 1, settle which k
 
 - **PWA:** manifest, home-screen icon, service worker; QA checks that it installs and what works offline. Say what a PWA cannot do on iOS compared with a native app before the user chooses it over mobile.
 - **Content or marketing site:** search visibility and page speed lead; consider a static site and how the owner will edit content. The build plan is short.
-- **API or backend only:** there are no screens, so stage 2 uses no Figma. The design is the API contract (endpoints, inputs, outputs, errors, authentication, versioning), written to `docs/design.md` and approved at Gate 2. QA is contract tests and a load check; launch covers documentation, keys, rate limits and pricing.
+- **API or backend only:** there are no screens, so stage 2 uses no design tool. The design is the API contract (endpoints, inputs, outputs, errors, authentication, versioning), written to `docs/design.md` and approved at Gate 2. QA is contract tests and a load check; launch covers documentation, keys, rate limits and pricing.

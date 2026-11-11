@@ -19,7 +19,7 @@
 5. **Scope and scale.** Must-have features for the first version, what is deliberately left out, expected users at launch and plausible growth. Propose a scope yourself; cut features that are there only because they are easy.
 
 6. **Design direction.** Visual style, color palette, typography, light and dark modes, reference apps the user likes. Suggest tools and say what each is for:
-   - **Figma:** the real, editable design in stage 2 (needs the Figma connector).
+   - **Seeing the screens in stage 2:** real screens run in the simulator or browser, a high-fidelity coded prototype, Penpot (free, editable), or Figma with a paid seat. Figma's free plan allows too few AI tool calls for a full design; say so now.
    - **Palette:** Coolors (generate palettes), Realtime Colors (see a palette on a live layout), Material Theme Builder (full Material token sets).
    - **Typography:** Fontpair or Google Fonts.
    - **Reference screens:** Mobbin (screens from shipped apps).
