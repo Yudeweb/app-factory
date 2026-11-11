@@ -10,7 +10,7 @@ Early and largely unproven. Read this before relying on it.
 
 - **Tested:** the state script (`factory.py`) passes a simulated run of the whole lifecycle, including the cases it must refuse: starting a stage before the previous gate is approved, completing a stage whose required output is missing, a fourth attempt at a task, and dependency cycles.
 - **Not yet tested:** a complete run on a real app idea with live agents. The stage guides and agent definitions are instructions for Claude; how well they perform on a real project has not been measured.
-- **Tested once:** the analyze mode, on one real iOS repository. It completed end to end (orientation, one question, market scan and code review in parallel, three-part verdict). The quick market scan relied on search snippets, so its competitor and demand findings were thin; one run is not a measure of quality.
+- **Partly tested:** an earlier version of the analyze mode ran once on a real iOS repository and completed end to end. The current version, which asks about your intentions and records a vision, has not been run on a real repository.
 - **Not yet measured:** token use. Version 2 is designed to use fewer tokens than version 1 (one quick research pass before the conversation, seven required documents instead of about 45, shorter instructions), but no real run has been measured.
 - **Not yet tested:** creating designs in Figma. Stage 2 depends on the Figma connector's write-to-canvas tool, which is in beta.
 - There is no automated test suite or CI in this repository yet.
@@ -38,15 +38,19 @@ To come back later: open the project folder and run `/app-factory continue`. For
 
 ## Analyze an existing repo
 
-Open any app repository in Claude and run `/app-factory analyze`. This is separate from the lifecycle below: it never touches stage state or gates and changes nothing in the repository.
+Open any app repository in Claude and run `/app-factory analyze`. This is separate from the lifecycle below: it never touches stage state or gates and never edits code.
 
-It reads the code, documentation and git history, runs safe checks (dependency listing, outdated and vulnerable packages) without building or running the app, and does one quick market scan. You get a verdict in chat on three things, each scored 1 to 5 with a confidence level:
+A repository shows what exists, not what is intended, so the analysis asks first and judges the code against your answers:
 
-- **the idea:** problem, users, and how it compares with what already exists;
-- **monetization and business:** the model the repo states or implies, against competitor pricing and running costs;
-- **the technical stack:** whether it fits the idea and likely scale, risks and quality signals.
+1. It reads the code, documentation and git history, and any vision recorded on an earlier run.
+2. It asks multiple-choice questions (each with "Not decided yet"): who the app is for, the monetization plan, which tasks must work at shipment, and which features are planned but not built.
+3. A quick market scan and a read-only code review run in parallel. Safe checks only (dependency listing, outdated and vulnerable packages); nothing is built or run.
+4. It offers to run the repository's existing test suite. Without that, must-work tasks are reported as "looks implemented, not verified".
+5. It asks you to classify the gaps it found: planned, must work at shipment, not wanted, or not decided yet.
+6. You get a verdict in chat on the idea, the monetization and business plan, and the technical stack, each scored 1 to 5 with a confidence level. A planned feature that is not built yet does not lower a score. It includes a gap table and an ordered path to shipment.
+7. It records your intent in `vision.md`, or in a "Vision" section of `plan.md` if you prefer; it asks which on the first run. Later runs read that record and ask only what changed.
 
-It ends with prioritized recommendations and a list of what it could not determine, then asks whether to save the report as `docs/app-analysis.md`.
+Finally it asks whether to save the report as `docs/app-analysis.md`.
 
 ## Lifecycle
 
